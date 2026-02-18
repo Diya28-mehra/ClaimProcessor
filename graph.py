@@ -45,7 +45,7 @@ def route_to_next_agent(state: ClaimsGraphState):
     
     # Route from discharge_summary_agent (or previous if skipped) to itemized_bill_agent
     if 'itemized_bill_data' not in extracted:
-        if classification.get('itemized_bill'):
+        if classification.get('itemized_hospital_bill'):
             return "itemized_bill_agent"
     
     # All agents processed, go to aggregator

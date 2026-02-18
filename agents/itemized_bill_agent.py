@@ -24,15 +24,13 @@ Format:
 {{
   "items": [
     {{
-      "description": "Item name/description",
-      "category": "consultation/pharmacy/procedure/room/investigation/other",
+      "description": "Item name",
       "quantity": 1,
-      "unit_cost": 1000.00,
-      "total_cost": 1000.00
+      "unit_cost": 100.0,
+      "total_cost": 100.0
     }}
   ],
-  "total_amount": 5000.00,
-  "currency": "INR"
+  "total_amount": 100.0
 }}
 
 If a field is not found, use null or reasonable defaults.
@@ -47,7 +45,7 @@ def extract_itemized_bill(state: ClaimsGraphState):
     """
     
     classification = state.get('classification', {})
-    bill_pages = classification.get('itemized_bill', [])
+    bill_pages = classification.get('itemized_hospital_bill', [])
     
     if not bill_pages:
         return {"extracted_data": {**state.get('extracted_data', {}), "itemized_bill_data": None}}
@@ -67,7 +65,7 @@ def extract_itemized_bill(state: ClaimsGraphState):
     )
     
     prompt = prompt_template.format(pages_text=pages_text)
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
     
     try:
         response = llm.invoke(prompt)
@@ -83,17 +81,11 @@ def extract_itemized_bill(state: ClaimsGraphState):
         
         bill_data = json.loads(content)
         
-        # Verify/recalculate total if needed
-        if 'items' in bill_data and bill_data['items']:
-            calculated_total = sum(item.get('total_cost', 0) for item in bill_data['items'])
-            bill_data['calculated_total'] = calculated_total
-        
         # Update extracted_data in state
         current_extracted = state.get('extracted_data', {})
         current_extracted['itemized_bill_data'] = bill_data
         
         return {"extracted_data": current_extracted}
-        
     except Exception as e:
         current_extracted = state.get('extracted_data', {})
         current_extracted['itemized_bill_data'] = None

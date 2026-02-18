@@ -10,29 +10,33 @@ load_dotenv()
 SEGREGATOR_PROMPT = """
 You are a medical claim document classifier.
 
-Classify each page into one of these types:
+Classify EACH page of the document into EXACTLY ONE of these types:
 - claim_forms
 - cheque_or_bank_details
 - identity_document
-- itemized_bill
+- insurance_verification_form
+- medical_history_questionnaire
+- itemized_hospital_bill
+- pharmacy_and_outpatient_bill
 - discharge_summary
 - prescription
 - investigation_report
 - cash_receipt
 - other
 
-IMPORTANT: Respond with ONLY a valid JSON object. No explanation, no markdown, no extra text.
-
-Format:
+Format your response as a single JSON object where keys are the types and values are lists of page numbers.
+Example:
 {{
-  "identity_document": [1, 3],
-  "discharge_summary": [2],
-  "itemized_bill": [4, 5]
+  "identity_document": [1],
+  "discharge_summary": [2, 3]
 }}
 
-Only include document types that are actually present in the pages.
+IMPORTANT: 
+1. Use ONLY the types listed above. 
+2. Do NOT repeat any keys in the JSON.
+3. Respond with ONLY the JSON object.
 
-Pages:
+Pages to classify:
 {pages}
 """
 def segregate_pages(state: ClaimsGraphState):
@@ -40,11 +44,15 @@ def segregate_pages(state: ClaimsGraphState):
     Classifies pages of the PDF into specific document types using Gemini.
     """
     pages = state['pages']
+    print(f"\n--- Segregator Debug ---")
+    print(f"Number of pages to classify: {len(pages)}")
     
-    # Format pages for the prompt
+    # Format pages for the prompt - using shorter truncation for 8B model stability
     pages_text = ""
     for page in pages:
-        pages_text += f"Page {page['page_number']}:\n{page['text'][:1000]}\n\n" # Truncate for prompt efficiency if needed
+        pages_text += f"Page {page['page_number']}:\n{page['text'][:500]}\n\n"
+
+    print(f"Pages text snippet (first 100 chars):\n{pages_text[:100]}...")
 
     prompt_template = PromptTemplate(
         input_variables=["pages"],
@@ -52,11 +60,12 @@ def segregate_pages(state: ClaimsGraphState):
     )
     
     prompt = prompt_template.format(pages=pages_text)
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
     
     try:
         response = llm.invoke(prompt)
         content = response.content
+        print(f"Raw LLM Response Content: {content[:500]}...") # Print snippet to see if it loops
 
         content = content.strip()
         content = re.sub(r"```(?:json)?", "", content).strip()
@@ -66,7 +75,9 @@ def segregate_pages(state: ClaimsGraphState):
             content = json_match.group(0)
         
         classification = json.loads(content)
+        print(f"Parsed Classification: {classification}")
         
         return {"classification": classification}
     except Exception as e:
+        print(f"!!! Segregator Error: {str(e)}")
         return {"classification": {}}

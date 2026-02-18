@@ -72,7 +72,7 @@ def extract_identity(state: ClaimsGraphState):
     )
     
     prompt = prompt_template.format(pages_text=pages_text)
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
     
     try:
         response = llm.invoke(prompt)
