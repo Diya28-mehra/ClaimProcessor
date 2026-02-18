@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-openai
+pdfplumber
+python-multipart
+pydantic
+langchain-google-genai
+python-dotenv
+requests
+langchain-groq
